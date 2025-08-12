@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나의 감정 날씨 일기 v2.1 - Enhanced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        
+        .weather-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 3px solid transparent;
+        }
+        
+        .weather-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .weather-card.selected {
+            border-color: #8b5cf6;
+            background: linear-gradient(135deg, #f3e7fc, #e7d5f8);
+            transform: scale(1.05);
+        }
+        
+        /* 접근성을 위한 포커스 스타일 추가 */
+        .weather-card:focus-visible {
+            outline: 3px solid #8b5cf6;
+            outline-offset: 2px;
+        }
+        
+        .body-part {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .body-part:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2);
+        }
+        
+        .body-part.active {
+            animation: pulse 2s infinite;
+        }
+        
+        /* 신체 부위 설명 박스 활성화 스타일 */
+        .body-desc-box {
+            transition: all 0.3s ease;
+            opacity: 0.6;
+        }
+        
+        .body-desc-box.active {
+            opacity: 1;
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+        
+        #captureArea {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 30%, #81ecec 60%, #74b9ff 100%);
+            position: relative;
+        }
+        
+        .emotion-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        /* Toast 알림 스타일 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        /* 자동저장 인디케이터 */
+        .save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .save-indicator.show {
+            opacity: 1;
+        }
+        
+        /* 감정 강도 슬라이더 스타일 */
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #ddd6fe, #8b5cf6);
+            outline: none;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        
+        .slider:hover {
+            opacity: 1;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: white;
+            border: 3px solid #8b5cf6;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            background: white;
+            border: 3px solid #8b5cf6;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* 모바일 터치 영역 최적화 */
+        @media (max-width: 768px) {
+            .touch-target {
+                min-height: 48px;
+                min-width: 48px;
+            }
+            
+            .weather-card {
+                padding: 1.25rem !important;
+            }
+            
+            button {
+                -webkit-tap-highlight-color: rgba(139, 92, 246, 0.2);
+            }
+        }
+        
+        /* 스크린리더 전용 텍스트 */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        
+        /* 고대비 모드 지원 */
+        @media (prefers-contrast: high) {
+            .weather-card.selected {
+                border-width: 4px;
+                border-color: #5b21b6;
+            }
+            
+            .body-part.active {
+                stroke-width: 4;
+                stroke: #dc2626;
+            }
+        }
+        
+        /* 다크모드 지원 (선택적) */
+        @media (prefers-color-scheme: dark) {
+            /* 다크모드 사용자를 위한 기본 지원 */
+            .bg-gray-50 {
+                background-color: #1f2937;
+            }
+        }
+        
+        @media print {
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            #captureArea {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 20px !important;
+                page-break-inside: avoid;
+                box-shadow: none !important;
+            }
+            
+            .weather-card {
+                page-break-inside: avoid;
+            }
+            
+            .bg-white {
+                page-break-inside: avoid;
+            }
+            
+            /* 각 섹션을 컴팩트하게 */
+            .mb-6 {
+                margin-bottom: 15px !important;
+            }
+            
+            .mb-8 {
+                margin-bottom: 20px !important;
+            }
+            
+            .p-6 {
+                padding: 15px !important;
+            }
+            
+            .p-8 {
+                padding: 20px !important;
+            }
+            
+            /* 텍스트 크기 조정 */
+            h1 {
+                font-size: 28px !important;
+            }
+            
+            h2 {
+                font-size: 20px !important;
+            }
+            
+            .text-5xl {
+                font-size: 2.5rem !important;
+            }
+            
+            /* 날씨 카드 그리드 조정 - 스코프 제한 */
+            #captureArea .weather-grid {
+                grid-template-columns: repeat(4, 1fr) !important;
+            }
+            
+            /* SVG 크기 조정 */
+            svg {
+                width: 150px !important;
+                height: 225px !important;
+            }
+            
+            /* 입력 필드 높이 조정 */
+            textarea {
+                min-height: 40px !important;
+            }
+            
+            /* 입력 필드 스타일 유지 */
+            input[type="date"], 
+            input[type="text"] {
+                border-bottom: 1px solid #333 !important;
+                background: transparent !important;
+            }
+            
+            /* 날짜 입력 필드 인쇄 스타일 */
+            input[type="date"]::-webkit-calendar-picker-indicator {
+                display: none;
+            }
+            
+            /* 색상 표시 영역 조정 */
+            #colorDisplay {
+                width: 80px !important;
+                height: 80px !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 스크린리더 알림 영역 -->
+    <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Toast 알림 -->
+    <div id="toast" class="toast no-print"></div>
+    
+    <!-- 자동저장 인디케이터 -->
+    <div id="saveIndicator" class="save-indicator no-print">
+        ✓ 자동 저장됨
+    </div>
+
+    <!-- 저장할 영역 시작 -->
+    <div id="captureArea" class="max-w-4xl mx-auto p-8 bg-white shadow-xl rounded-2xl my-8 print:my-0">
+        <div class="emotion-gradient"></div>
+        
+        <!-- 헤더 -->
+        <div class="text-center mb-8 relative z-10 print:mb-4">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2 print:text-3xl print:mb-1">🌈 나의 감정 날씨 일기</h1>
+            <div class="flex justify-center items-center gap-4 text-gray-600 print:text-sm">
+                <span>📅 <input type="date" id="dateInput" class="border-b-2 border-gray-300 px-2 py-1 text-center focus:border-purple-500 focus:outline-none"></span>
+                <span>🏫 <input type="text" id="className" placeholder="학년 반" class="border-b-2 border-gray-300 px-2 py-1 w-24 text-center focus:border-purple-500 focus:outline-none"></span>
+                <span>👤 <input type="text" id="studentName" placeholder="이름" class="border-b-2 border-gray-300 px-2 py-1 w-24 text-center focus:border-purple-500 focus:outline-none"></span>
+            </div>
+        </div>
+
+        <!-- 1. 감정 날씨 선택 -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-lg relative z-10 print:p-4 print:mb-3 print:shadow-none">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center print:text-lg print:mb-2">
+                <span class="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-lg print:w-6 print:h-6 print:text-sm">1</span>
+                지금 내 마음은 어떤 날씨인가요?
+            </h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 print:gap-2 weather-grid">
+                <button class="weather-card bg-yellow-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('sunny', '맑음', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="맑음 - 기쁨, 즐거움, 행복">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">☀️</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">맑음</div>
+                    <div class="text-sm text-gray-600 print:text-xs">기쁨, 즐거움, 행복</div>
+                </button>
+                
+                <button class="weather-card bg-gray-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('cloudy', '흐림', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="흐림 - 무덤덤, 심심함">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">☁️</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">흐림</div>
+                    <div class="text-sm text-gray-600 print:text-xs">무덤덤, 심심함</div>
+                </button>
+                
+                <button class="weather-card bg-blue-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('rainy', '비', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="비 - 슬픔, 우울함">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">🌧️</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">비</div>
+                    <div class="text-sm text-gray-600 print:text-xs">슬픔, 우울함</div>
+                </button>
+                
+                <button class="weather-card bg-purple-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('stormy', '폭풍', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="폭풍 - 화남, 짜증, 분노">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">⛈️</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">폭풍</div>
+                    <div class="text-sm text-gray-600 print:text-xs">화남, 짜증, 분노</div>
+                </button>
+                
+                <button class="weather-card bg-cyan-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('snowy', '눈', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="눈 - 차분함, 평온함">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">❄️</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">눈</div>
+                    <div class="text-sm text-gray-600 print:text-xs">차분함, 평온함</div>
+                </button>
+                
+                <button class="weather-card bg-pink-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('rainbow', '무지개', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="무지개 - 희망, 기대, 설렘">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">🌈</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">무지개</div>
+                    <div class="text-sm text-gray-600 print:text-xs">희망, 기대, 설렘</div>
+                </button>
+                
+                <button class="weather-card bg-green-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('windy', '바람', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="바람 - 불안, 초조함">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">🌬️</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">바람</div>
+                    <div class="text-sm text-gray-600 print:text-xs">불안, 초조함</div>
+                </button>
+                
+                <button class="weather-card bg-indigo-50 rounded-xl p-5 md:p-4 text-center print:p-2 touch-target" 
+                        onclick="selectWeather('foggy', '안개', this)"
+                        tabindex="0"
+                        role="radio"
+                        aria-checked="false"
+                        aria-label="안개 - 혼란, 막막함">
+                    <div class="text-6xl md:text-5xl mb-2 print:text-3xl print:mb-1">🌫️</div>
+                    <div class="font-medium text-base md:text-sm print:text-sm">안개</div>
+                    <div class="text-sm text-gray-600 print:text-xs">혼란, 막막함</div>
+                </button>
+            </div>
+            
+            <!-- 복합 감정 표현 -->
+            <div class="mt-4 p-4 bg-purple-50 rounded-lg print:mt-2 print:p-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2 print:mb-1">
+                    💭 복합적인 감정이라면? (선택사항)
+                </label>
+                <input type="text" id="complexEmotion" 
+                       placeholder="예: 비가 오다가 무지개가 뜬 것 같아요 (슬프다가 희망이 생겼어요)"
+                       class="w-full px-4 py-2 border-2 border-purple-200 rounded-lg focus:border-purple-400 focus:outline-none print:px-2 print:py-1 print:text-sm">
+            </div>
+            
+            <!-- 감정 강도 슬라이더 (선택적) -->
+            <details class="mt-4 print:hidden">
+                <summary class="cursor-pointer text-sm font-medium text-gray-700 hover:text-purple-600 transition p-2 rounded hover:bg-purple-50">
+                    🎚️ 감정의 세기도 표현하고 싶나요? (선택)
+                </summary>
+                <div class="mt-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                    <div class="mb-2">
+                        <input type="range" 
+                               id="emotionIntensity" 
+                               min="1" 
+                               max="5" 
+                               value="3" 
+                               class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                               oninput="updateEmotionIntensity(this.value)"
+                               aria-label="감정 강도 선택">
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-600">
+                        <span>😌 매우 약함</span>
+                        <span>🙂 약함</span>
+                        <span>😊 보통</span>
+                        <span>😃 강함</span>
+                        <span>🤩 매우 강함</span>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <span id="intensityLabel" class="text-lg font-medium text-purple-600">보통 (3/5)</span>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <!-- 2. 신체 변화 -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-lg relative z-10 print:p-4 print:mb-3 print:shadow-none">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center print:text-lg print:mb-2">
+                <span class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-lg print:w-6 print:h-6 print:text-sm">2</span>
+                이런 감정일 때 내 몸은 어떻게 변하나요?
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 print:gap-3">
+                <!-- 신체 다이어그램 -->
+                <div class="text-center">
+                    <div class="relative inline-block">
+                        <svg width="200" height="300" viewBox="0 0 200 300" class="mx-auto print:w-32 print:h-48">
+                            <!-- 머리 -->
+                            <circle cx="100" cy="50" r="30" fill="#fdbcb4" stroke="#333" stroke-width="2" 
+                                    class="body-part" onclick="toggleBodyPart('head', this)"
+                                    data-original-fill="#fdbcb4"/>
+                            <text x="100" y="55" text-anchor="middle" font-size="20">😊</text>
+                            
+                            <!-- 몸통 -->
+                            <rect x="70" y="80" width="60" height="80" rx="10" fill="#87ceeb" stroke="#333" stroke-width="2"
+                                  class="body-part" onclick="toggleBodyPart('chest', this)"
+                                  data-original-fill="#87ceeb"/>
+                            
+                            <!-- 팔 -->
+                            <rect x="35" y="90" width="30" height="60" rx="5" fill="#fdbcb4" stroke="#333" stroke-width="2"
+                                  class="body-part" onclick="toggleBodyPart('leftArm', this)"
+                                  data-original-fill="#fdbcb4"/>
+                            <rect x="135" y="90" width="30" height="60" rx="5" fill="#fdbcb4" stroke="#333" stroke-width="2"
+                                  class="body-part" onclick="toggleBodyPart('rightArm', this)"
+                                  data-original-fill="#fdbcb4"/>
+                            
+                            <!-- 다리 -->
+                            <rect x="75" y="160" width="20" height="70" rx="5" fill="#4169e1" stroke="#333" stroke-width="2"
+                                  class="body-part" onclick="toggleBodyPart('leftLeg', this)"
+                                  data-original-fill="#4169e1"/>
+                            <rect x="105" y="160" width="20" height="70" rx="5" fill="#4169e1" stroke="#333" stroke-width="2"
+                                  class="body-part" onclick="toggleBodyPart('rightLeg', this)"
+                                  data-original-fill="#4169e1"/>
+                            
+                            <!-- 하트 (가슴) -->
+                            <path d="M100,110 C100,100 90,100 90,110 C90,100 80,100 80,110 Q80,120 100,135 Q120,120 120,110 C120,100 110,100 110,110 C110,100 100,100 100,110 Z" 
+                                  fill="#ff69b4" stroke="#333" stroke-width="1" opacity="0.7"
+                                  class="body-part" onclick="toggleBodyPart('heart', this)"
+                                  data-original-fill="#ff69b4"/>
+                        </svg>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2 print:text-xs">👆 신체 부위를 클릭해보세요</p>
+                </div>
+                
+                <!-- 신체 변화 설명 -->
+                <div>
+                    <div class="space-y-3 print:space-y-1">
+                        <div id="bodyPartDesc">
+                            <div class="body-desc-box p-3 bg-blue-50 rounded-lg print:p-1" data-part="head">
+                                <strong class="print:text-sm">🧠 머리:</strong> 
+                                <input type="text" class="body-input w-full mt-1 px-2 py-1 border rounded print:text-xs" 
+                                       placeholder="예: 머리가 아파요, 어지러워요">
+                            </div>
+                            <div class="body-desc-box p-3 bg-pink-50 rounded-lg print:p-1 mt-2" data-part="heart">
+                                <strong class="print:text-sm">❤️ 가슴:</strong> 
+                                <input type="text" class="body-input w-full mt-1 px-2 py-1 border rounded print:text-xs" 
+                                       placeholder="예: 심장이 빨리 뛰어요, 답답해요">
+                            </div>
+                            <div class="body-desc-box p-3 bg-green-50 rounded-lg print:p-1 mt-2" data-part="chest">
+                                <strong class="print:text-sm">🫁 호흡:</strong> 
+                                <input type="text" class="body-input w-full mt-1 px-2 py-1 border rounded print:text-xs" 
+                                       placeholder="예: 숨이 가빠요, 한숨이 나와요">
+                            </div>
+                            <div class="body-desc-box p-3 bg-yellow-50 rounded-lg print:p-1 mt-2" data-part="arms">
+                                <strong class="print:text-sm">🙌 손/팔:</strong> 
+                                <input type="text" class="body-input w-full mt-1 px-2 py-1 border rounded print:text-xs" 
+                                       placeholder="예: 손에 땀이 나요, 주먹을 쥐게 돼요">
+                            </div>
+                            <div class="body-desc-box p-3 bg-purple-50 rounded-lg print:p-1 mt-2" data-part="legs">
+                                <strong class="print:text-sm">🦵 다리:</strong> 
+                                <input type="text" class="body-input w-full mt-1 px-2 py-1 border rounded print:text-xs" 
+                                       placeholder="예: 다리가 떨려요, 힘이 빠져요">
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 bg-gray-50 rounded-lg print:p-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2 print:mb-1">
+                                ✍️ 그 외 신체 변화가 있다면?
+                            </label>
+                            <textarea id="otherBodyChanges" 
+                                      placeholder="예: 얼굴이 빨개져요, 배가 아파요, 목소리가 커져요..."
+                                      class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none print:px-2 print:py-1 print:text-sm"
+                                      rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 감정의 원인 -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-lg relative z-10 print:p-4 print:mb-3 print:shadow-none">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center print:text-lg print:mb-2">
+                <span class="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-lg print:w-6 print:h-6 print:text-sm">3</span>
+                왜 이런 감정을 느꼈나요?
+            </h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        🎭 무슨 일이 있었나요?
+                    </label>
+                    <textarea id="emotionCause" 
+                              placeholder="오늘 있었던 일을 자유롭게 적어보세요. 누가, 언제, 어디서, 무엇을, 어떻게, 왜..."
+                              class="w-full px-4 py-3 border-2 border-green-200 rounded-lg focus:border-green-400 focus:outline-none print:h-auto"
+                              rows="2"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        💭 그때 어떤 생각이 들었나요?
+                    </label>
+                    <textarea id="emotionThought" 
+                              placeholder="그 순간 머릿속에 떠오른 생각들..."
+                              class="w-full px-4 py-3 border-2 border-green-200 rounded-lg focus:border-green-400 focus:outline-none print:h-auto"
+                              rows="2"></textarea>
+                </div>
+                
+                <div class="p-4 bg-yellow-50 rounded-lg">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        🌟 다음에는 어떻게 하고 싶나요?
+                    </label>
+                    <input type="text" id="futureAction" 
+                           placeholder="예: 친구와 대화로 해결하고 싶어요, 깊게 숨을 쉬고 진정하고 싶어요..."
+                           class="w-full px-4 py-2 border-2 border-yellow-300 rounded-lg focus:border-yellow-400 focus:outline-none">
+                </div>
+            </div>
+        </div>
+
+        <!-- 감정 색깔 -->
+        <div class="bg-white rounded-xl p-6 shadow-lg relative z-10 print:p-3 print:shadow-none">
+            <h2 class="text-xl font-bold text-gray-700 mb-4 print:text-base print:mb-2">
+                🎨 오늘 내 마음의 색깔
+            </h2>
+            <div class="flex items-center justify-center space-x-4 print:space-x-2">
+                <div id="colorDisplay" class="w-32 h-32 rounded-full border-4 border-gray-300 transition-all duration-300 print:w-20 print:h-20 print:border-2"></div>
+                <div>
+                    <p class="text-gray-600 mb-2 print:text-sm">감정을 색으로 표현해보세요</p>
+                    <div class="flex flex-wrap gap-2 print:gap-1">
+                        <button onclick="setEmotionColor('#FFE66D')" class="w-10 h-10 rounded-full bg-yellow-300 hover:scale-110 transition print:w-8 print:h-8"></button>
+                        <button onclick="setEmotionColor('#FF6B6B')" class="w-10 h-10 rounded-full bg-red-400 hover:scale-110 transition print:w-8 print:h-8"></button>
+                        <button onclick="setEmotionColor('#4ECDC4')" class="w-10 h-10 rounded-full bg-teal-400 hover:scale-110 transition print:w-8 print:h-8"></button>
+                        <button onclick="setEmotionColor('#95E1D3')" class="w-10 h-10 rounded-full bg-green-300 hover:scale-110 transition print:w-8 print:h-8"></button>
+                        <button onclick="setEmotionColor('#C7CEEA')" class="w-10 h-10 rounded-full bg-purple-300 hover:scale-110 transition print:w-8 print:h-8"></button>
+                        <button onclick="setEmotionColor('#FFDAB9')" class="w-10 h-10 rounded-full bg-orange-200 hover:scale-110 transition print:w-8 print:h-8"></button>
+                        <button onclick="setEmotionColor('#B0B0B0')" class="w-10 h-10 rounded-full bg-gray-400 hover:scale-110 transition print:w-8 print:h-8"></button>
+                        <button onclick="setEmotionColor('#2C3E50')" class="w-10 h-10 rounded-full bg-gray-800 hover:scale-110 transition print:w-8 print:h-8"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 저장할 영역 끝 -->
+
+    <!-- 액션 버튼 (이미지 저장 영역 밖) -->
+    <div class="max-w-4xl mx-auto px-8 pb-8 no-print">
+        <div class="flex flex-wrap justify-center gap-4">
+            <button onclick="saveAsImage()" class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full font-bold hover:shadow-lg transform hover:scale-105 transition">
+                📸 이미지로 저장하기
+            </button>
+            <button onclick="window.print()" class="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full font-bold hover:shadow-lg transform hover:scale-105 transition">
+                🖨️ 인쇄하기
+            </button>
+            <button onclick="resetForm()" class="px-6 py-3 bg-gray-400 text-white rounded-full font-bold hover:bg-gray-500 transition">
+                🔄 다시 작성
+            </button>
+        </div>
+        
+        <div class="text-center mt-4 text-sm text-gray-600">
+            💡 Tip: 작성 내용은 자동으로 저장됩니다. 이미지로 저장하면 카카오톡이나 클래스팅으로 공유할 수 있어요!
+            <div class="mt-2 text-xs text-gray-400">
+                v2.1 Enhanced | 🔊 스크린리더 지원 | 📱 모바일 최적화 | ⌨️ 키보드 네비게이션
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let selectedWeather = '';
+        let selectedBodyParts = new Set();
+        let emotionColor = '#FFE66D';
+        let emotionIntensity = 3;
+        let autoSaveTimer;
+
+        // 신체 부위 매핑 테이블 (버그 수정)
+        const bodyPartMapping = {
+            'head': 'head',
+            'heart': 'heart',
+            'chest': 'chest',
+            'leftArm': 'arms',
+            'rightArm': 'arms',
+            'leftLeg': 'legs',
+            'rightLeg': 'legs'
+        };
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            // 오늘 날짜를 기본값으로 설정
+            const today = new Date();
+            const dateString = today.toISOString().split('T')[0];
+            document.getElementById('dateInput').value = dateString;
+
+            // 초기 색상 표시 (개선)
+            setEmotionColor(emotionColor);
+
+            // 자동저장된 데이터 복원
+            loadAutoSavedData();
+
+            // 자동저장 이벤트 설정
+            setupAutoSave();
+
+            // 키보드 네비게이션 설정
+            setupKeyboardNavigation();
+        });
+
+        // Toast 알림 표시 함수 (alert 대체)
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 자동저장 인디케이터 표시
+        function showSaveIndicator() {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.classList.add('show');
+            
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+
+        // 스크린리더 알림 함수
+        function announceToScreenReader(message) {
+            const announcer = document.getElementById('announcer');
+            announcer.textContent = message;
+            
+            // 짧은 지연 후 초기화 (다음 알림을 위해)
+            setTimeout(() => {
+                announcer.textContent = '';
+            }, 100);
+        }
+
+        // 감정 강도 업데이트
+        function updateEmotionIntensity(value) {
+            emotionIntensity = parseInt(value);
+            const labels = ['매우 약함', '약함', '보통', '강함', '매우 강함'];
+            const label = document.getElementById('intensityLabel');
+            
+            if (label) {
+                label.textContent = `${labels[value - 1]} (${value}/5)`;
+                label.style.color = `hsl(${270 - (value - 1) * 30}, 70%, 50%)`;
+            }
+            
+            // 스크린리더에 알림
+            announceToScreenReader(`감정 강도가 ${labels[value - 1]}로 설정되었습니다`);
+            
+            // 자동저장
+            autoSave();
+        }
+
+        // 날씨 선택 (접근성 개선)
+        function selectWeather(weather, weatherName, element) {
+            // 이전 선택 제거
+            document.querySelectorAll('.weather-card').forEach(card => {
+                card.classList.remove('selected');
+                card.setAttribute('aria-checked', 'false');
+            });
+            
+            // 새 선택 추가
+            element.classList.add('selected');
+            element.setAttribute('aria-checked', 'true');
+            selectedWeather = weather;
+            
+            // 배경 그라데이션 변경
+            updateBackgroundGradient(weather);
+            
+            // 스크린리더에 알림
+            announceToScreenReader(`${weatherName} 날씨가 선택되었습니다`);
+            
+            // 자동저장
+            autoSave();
+        }
+
+        // 배경 그라데이션 업데이트
+        function updateBackgroundGradient(weather) {
+            const gradients = {
+                'sunny': 'linear-gradient(135deg, #FFE66D, #FF6B6B)',
+                'cloudy': 'linear-gradient(135deg, #B0B0B0, #E0E0E0)',
+                'rainy': 'linear-gradient(135deg, #74b9ff, #0984e3)',
+                'stormy': 'linear-gradient(135deg, #636e72, #2d3436)',
+                'snowy': 'linear-gradient(135deg, #dfe6e9, #b2bec3)',
+                'rainbow': 'linear-gradient(135deg, #ff7675, #fdcb6e, #6c5ce7, #74b9ff)',
+                'windy': 'linear-gradient(135deg, #81ecec, #55efc4)',
+                'foggy': 'linear-gradient(135deg, #b2bec3, #636e72)'
+            };
+            
+            const gradient = gradients[weather] || 'linear-gradient(135deg, #ffeaa7, #fdcb6e)';
+            document.querySelector('.emotion-gradient').style.background = gradient;
+        }
+
+        // 신체 부위 토글 (버그 수정 + 접근성 강화)
+        function toggleBodyPart(part, element) {
+            const mappedPart = bodyPartMapping[part];
+            const descBox = document.querySelector(`[data-part="${mappedPart}"]`);
+            
+            // 신체 부위 이름 매핑
+            const partNames = {
+                'head': '머리',
+                'heart': '가슴',
+                'chest': '호흡',
+                'arms': '손/팔',
+                'legs': '다리'
+            };
+            
+            element.classList.toggle('active');
+            
+            if (selectedBodyParts.has(part)) {
+                selectedBodyParts.delete(part);
+                element.style.fill = element.getAttribute('data-original-fill');
+                if (descBox) {
+                    descBox.classList.remove('active');
+                }
+                announceToScreenReader(`${partNames[mappedPart] || part} 선택이 해제되었습니다`);
+            } else {
+                selectedBodyParts.add(part);
+                element.style.fill = '#ff6b6b';
+                if (descBox) {
+                    descBox.classList.add('active');
+                    // 해당 입력 필드에 포커스
+                    const input = descBox.querySelector('input');
+                    if (input) {
+                        setTimeout(() => input.focus(), 100);
+                    }
+                }
+                announceToScreenReader(`${partNames[mappedPart] || part}가 선택되었습니다. 해당 신체 변화를 입력해주세요`);
+            }
+            
+            autoSave();
+        }
+
+        // 감정 색상 설정 (접근성 강화)
+        function setEmotionColor(color) {
+            emotionColor = color;
+            document.getElementById('colorDisplay').style.backgroundColor = color;
+            
+            // 색상 이름 매핑 (스크린리더를 위해)
+            const colorNames = {
+                '#FFE66D': '노란색',
+                '#FF6B6B': '빨간색',
+                '#4ECDC4': '청록색',
+                '#95E1D3': '연한 초록색',
+                '#C7CEEA': '연한 보라색',
+                '#FFDAB9': '주황색',
+                '#B0B0B0': '회색',
+                '#2C3E50': '진한 회색'
+            };
+            
+            const colorName = colorNames[color] || '선택한 색상';
+            announceToScreenReader(`감정 색상이 ${colorName}으로 설정되었습니다`);
+            
+            autoSave();
+        }
+
+        // 데이터 수집 함수
+        function collectFormData() {
+            const data = {
+                date: document.getElementById('dateInput').value,
+                className: document.getElementById('className').value,
+                studentName: document.getElementById('studentName').value,
+                weather: selectedWeather,
+                complexEmotion: document.getElementById('complexEmotion').value,
+                emotionIntensity: emotionIntensity,
+                bodyParts: Array.from(selectedBodyParts),
+                bodyInputs: {},
+                otherBodyChanges: document.getElementById('otherBodyChanges').value,
+                emotionCause: document.getElementById('emotionCause').value,
+                emotionThought: document.getElementById('emotionThought').value,
+                futureAction: document.getElementById('futureAction').value,
+                emotionColor: emotionColor,
+                timestamp: new Date().toISOString()
+            };
+            
+            // 신체 부위별 입력값 수집
+            document.querySelectorAll('.body-input').forEach(input => {
+                const part = input.closest('[data-part]').getAttribute('data-part');
+                data.bodyInputs[part] = input.value;
+            });
+            
+            return data;
+        }
+
+        // 자동저장 함수
+        function autoSave() {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                const formData = collectFormData();
+                localStorage.setItem('emotion_diary_draft', JSON.stringify(formData));
+                showSaveIndicator();
+            }, 1000);
+        }
+
+        // 자동저장 설정
+        function setupAutoSave() {
+            // 모든 입력 필드에 자동저장 이벤트 추가
+            document.querySelectorAll('input, textarea').forEach(field => {
+                field.addEventListener('input', autoSave);
+                field.addEventListener('change', autoSave);
+            });
+        }
+
+        // 자동저장된 데이터 복원
+        function loadAutoSavedData() {
+            const savedData = localStorage.getItem('emotion_diary_draft');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    
+                    // 기본 정보 복원
+                    if (data.date) document.getElementById('dateInput').value = data.date;
+                    if (data.className) document.getElementById('className').value = data.className;
+                    if (data.studentName) document.getElementById('studentName').value = data.studentName;
+                    
+                    // 날씨 선택 복원
+                    if (data.weather) {
+                        const weatherCard = document.querySelector(`.weather-card[onclick*="${data.weather}"]`);
+                        if (weatherCard) {
+                            selectWeather(data.weather, '', weatherCard);
+                        }
+                    }
+                    
+                    // 복합 감정 복원
+                    if (data.complexEmotion) document.getElementById('complexEmotion').value = data.complexEmotion;
+                    
+                    // 신체 부위 복원
+                    if (data.bodyParts && data.bodyParts.length > 0) {
+                        data.bodyParts.forEach(part => {
+                            const element = document.querySelector(`.body-part[onclick*="${part}"]`);
+                            if (element && !selectedBodyParts.has(part)) {
+                                toggleBodyPart(part, element);
+                            }
+                        });
+                    }
+                    
+                    // 신체 입력값 복원
+                    if (data.bodyInputs) {
+                        Object.keys(data.bodyInputs).forEach(part => {
+                            const input = document.querySelector(`[data-part="${part}"] input`);
+                            if (input) input.value = data.bodyInputs[part];
+                        });
+                    }
+                    
+                    // 기타 필드 복원
+                    if (data.otherBodyChanges) document.getElementById('otherBodyChanges').value = data.otherBodyChanges;
+                    if (data.emotionCause) document.getElementById('emotionCause').value = data.emotionCause;
+                    if (data.emotionThought) document.getElementById('emotionThought').value = data.emotionThought;
+                    if (data.futureAction) document.getElementById('futureAction').value = data.futureAction;
+                    
+                    // 색상 복원
+                    if (data.emotionColor) setEmotionColor(data.emotionColor);
+                    
+                    // 감정 강도 복원
+                    if (data.emotionIntensity) {
+                        const intensitySlider = document.getElementById('emotionIntensity');
+                        if (intensitySlider) {
+                            intensitySlider.value = data.emotionIntensity;
+                            updateEmotionIntensity(data.emotionIntensity);
+                        }
+                    }
+                    
+                    showToast('📝 이전 작성 내용을 불러왔습니다');
+                } catch (error) {
+                    console.error('데이터 복원 실패:', error);
+                }
+            }
+        }
+
+        // 키보드 네비게이션 설정 (강화)
+        function setupKeyboardNavigation() {
+            // 날씨 카드 키보드 이벤트
+            const weatherCards = document.querySelectorAll('.weather-card');
+            
+            weatherCards.forEach((card, index) => {
+                card.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        card.click();
+                    }
+                });
+                
+                // 방향키 네비게이션
+                card.addEventListener('keydown', function(e) {
+                    let targetIndex = -1;
+                    const cardsPerRow = window.innerWidth >= 768 ? 4 : 2;
+                    
+                    switch(e.key) {
+                        case 'ArrowRight':
+                            targetIndex = (index + 1) % weatherCards.length;
+                            break;
+                        case 'ArrowLeft':
+                            targetIndex = (index - 1 + weatherCards.length) % weatherCards.length;
+                            break;
+                        case 'ArrowDown':
+                            targetIndex = (index + cardsPerRow) % weatherCards.length;
+                            break;
+                        case 'ArrowUp':
+                            targetIndex = (index - cardsPerRow + weatherCards.length) % weatherCards.length;
+                            break;
+                    }
+                    
+                    if (targetIndex >= 0) {
+                        e.preventDefault();
+                        weatherCards[targetIndex].focus();
+                    }
+                });
+            });
+            
+            // ESC 키로 선택 취소
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    // 날씨 선택 취소
+                    document.querySelectorAll('.weather-card').forEach(card => {
+                        card.classList.remove('selected');
+                        card.setAttribute('aria-checked', 'false');
+                    });
+                    selectedWeather = '';
+                    announceToScreenReader('날씨 선택이 취소되었습니다');
+                }
+            });
+            
+            // Tab 키 순서 최적화
+            const focusableElements = document.querySelectorAll(
+                'button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+            );
+            
+            focusableElements.forEach((el, index) => {
+                el.setAttribute('data-tab-index', index);
+            });
+        }
+
+        // 이미지로 저장 (개선된 버전)
+        function saveAsImage() {
+            const element = document.getElementById('captureArea');
+            
+            html2canvas(element, {
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                backgroundColor: null,
+                onclone: function(clonedDoc) {
+                    // 복제된 DOM에서 입력 필드를 텍스트로 변환
+                    const clonedElement = clonedDoc.getElementById('captureArea');
+                    
+                    // 모든 input 필드 처리
+                    clonedElement.querySelectorAll('input').forEach(input => {
+                        const span = clonedDoc.createElement('span');
+                        span.textContent = input.value || '';
+                        span.style.cssText = window.getComputedStyle(input).cssText;
+                        span.style.display = 'inline-block';
+                        span.style.border = 'none';
+                        span.style.background = 'transparent';
+                        
+                        // placeholder 텍스트 처리
+                        if (!input.value && input.placeholder) {
+                            span.textContent = '';
+                            span.style.color = '#9ca3af';
+                        }
+                        
+                        input.parentNode.replaceChild(span, input);
+                    });
+                    
+                    // 모든 textarea 필드 처리
+                    clonedElement.querySelectorAll('textarea').forEach(textarea => {
+                        const div = clonedDoc.createElement('div');
+                        div.textContent = textarea.value || '';
+                        div.style.cssText = window.getComputedStyle(textarea).cssText;
+                        div.style.border = 'none';
+                        div.style.background = 'transparent';
+                        div.style.whiteSpace = 'pre-wrap';
+                        
+                        if (!textarea.value && textarea.placeholder) {
+                            div.textContent = '';
+                            div.style.color = '#9ca3af';
+                        }
+                        
+                        textarea.parentNode.replaceChild(div, textarea);
+                    });
+                }
+            }).then(canvas => {
+                // 이미지 다운로드
+                const link = document.createElement('a');
+                const selectedDate = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
+                const dateFormatted = selectedDate.replace(/-/g, '');
+                const name = document.getElementById('studentName').value || '학생';
+                link.download = `감정날씨일기_${name}_${dateFormatted}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                
+                showToast('📸 이미지가 저장되었습니다!');
+                
+                // 저장 후 로컬 스토리지 기록도 저장
+                const formData = collectFormData();
+                const savedRecords = JSON.parse(localStorage.getItem('emotion_diary_records') || '[]');
+                savedRecords.push(formData);
+                localStorage.setItem('emotion_diary_records', JSON.stringify(savedRecords));
+            }).catch(error => {
+                console.error('이미지 저장 실패:', error);
+                showToast('❌ 이미지 저장에 실패했습니다');
+            });
+        }
+
+        // 폼 초기화
+        function resetForm() {
+            if (confirm('정말 다시 작성하시겠어요? 저장되지 않은 내용이 사라집니다.')) {
+                // 모든 입력 필드 초기화
+                document.querySelectorAll('input[type="text"], textarea').forEach(field => {
+                    field.value = '';
+                });
+                
+                // 날씨 선택 초기화
+                document.querySelectorAll('.weather-card').forEach(card => {
+                    card.classList.remove('selected');
+                    card.setAttribute('aria-checked', 'false');
+                });
+                selectedWeather = '';
+                
+                // 신체 부위 초기화
+                document.querySelectorAll('.body-part').forEach(part => {
+                    part.classList.remove('active');
+                    const originalFill = part.getAttribute('data-original-fill');
+                    if (originalFill) {
+                        part.style.fill = originalFill;
+                    }
+                });
+                selectedBodyParts.clear();
+                
+                // 신체 설명 박스 초기화
+                document.querySelectorAll('.body-desc-box').forEach(box => {
+                    box.classList.remove('active');
+                });
+                
+                // 색상 초기화
+                setEmotionColor('#FFE66D');
+                
+                // 감정 강도 초기화
+                const intensitySlider = document.getElementById('emotionIntensity');
+                if (intensitySlider) {
+                    intensitySlider.value = 3;
+                    updateEmotionIntensity(3);
+                }
+                
+                // 배경 초기화
+                document.querySelector('.emotion-gradient').style.background = '';
+                
+                // 자동저장 데이터 삭제
+                localStorage.removeItem('emotion_diary_draft');
+                
+                showToast('🔄 새로 작성할 준비가 되었습니다');
+            }
+        }
+    </script>
+</body>
+</html>
