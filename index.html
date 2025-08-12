@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>나의 감정 날씨 일기 v2.1 - Enhanced</title>
+    <title>나의 감정 날씨 일기 v2.2 - Enhanced</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -208,6 +208,7 @@
             }
         }
         
+        /* 인쇄 스타일 - 2페이지 분할 개선 */
         @media print {
             @page {
                 size: A4;
@@ -227,8 +228,13 @@
                 max-width: 100% !important;
                 margin: 0 !important;
                 padding: 20px !important;
-                page-break-inside: avoid;
                 box-shadow: none !important;
+            }
+            
+            /* 첫 번째 섹션 (감정 날씨 선택) 후 페이지 분할 */
+            .page-break-after-weather {
+                page-break-after: always;
+                break-after: page;
             }
             
             .weather-card {
@@ -269,7 +275,7 @@
                 font-size: 2.5rem !important;
             }
             
-            /* 날씨 카드 그리드 조정 - 스코프 제한 */
+            /* 날씨 카드 그리드 조정 */
             #captureArea .weather-grid {
                 grid-template-columns: repeat(4, 1fr) !important;
             }
@@ -331,8 +337,8 @@
             </div>
         </div>
 
-        <!-- 1. 감정 날씨 선택 -->
-        <div class="bg-white rounded-xl p-6 mb-6 shadow-lg relative z-10 print:p-4 print:mb-3 print:shadow-none">
+        <!-- 1. 감정 날씨 선택 (첫 번째 페이지) -->
+        <div class="bg-white rounded-xl p-6 mb-6 shadow-lg relative z-10 print:p-4 print:mb-3 print:shadow-none page-break-after-weather">
             <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center print:text-lg print:mb-2">
                 <span class="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-lg print:w-6 print:h-6 print:text-sm">1</span>
                 지금 내 마음은 어떤 날씨인가요?
@@ -468,7 +474,7 @@
             </details>
         </div>
 
-        <!-- 2. 신체 변화 -->
+        <!-- 2. 신체 변화 (두 번째 페이지 시작) -->
         <div class="bg-white rounded-xl p-6 mb-6 shadow-lg relative z-10 print:p-4 print:mb-3 print:shadow-none">
             <h2 class="text-2xl font-bold text-gray-700 mb-4 flex items-center print:text-lg print:mb-2">
                 <span class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-lg print:w-6 print:h-6 print:text-sm">2</span>
@@ -643,7 +649,7 @@
         <div class="text-center mt-4 text-sm text-gray-600">
             💡 Tip: 작성 내용은 자동으로 저장됩니다. 이미지로 저장하면 카카오톡이나 클래스팅으로 공유할 수 있어요!
             <div class="mt-2 text-xs text-gray-400">
-                v2.1 Enhanced | 🔊 스크린리더 지원 | 📱 모바일 최적화 | ⌨️ 키보드 네비게이션
+                v2.2 Enhanced | 🔊 스크린리더 지원 | 📱 모바일 최적화 | ⌨️ 키보드 네비게이션 | 🖨️ 2페이지 인쇄
             </div>
         </div>
     </div>
@@ -1016,9 +1022,15 @@
             });
         }
 
-        // 이미지로 저장 (개선된 버전)
+        // 이미지로 저장 (파일명 개선)
         function saveAsImage() {
             const element = document.getElementById('captureArea');
+            
+            // 날짜 포맷 함수
+            function formatDate(dateStr) {
+                if (!dateStr) return new Date().toISOString().split('T')[0].replace(/-/g, '');
+                return dateStr.replace(/-/g, '');
+            }
             
             html2canvas(element, {
                 scale: 2,
@@ -1065,16 +1077,23 @@
                     });
                 }
             }).then(canvas => {
-                // 이미지 다운로드
+                // 이미지 다운로드 - 파일명 형식 개선
                 const link = document.createElement('a');
-                const selectedDate = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
-                const dateFormatted = selectedDate.replace(/-/g, '');
-                const name = document.getElementById('studentName').value || '학생';
-                link.download = `감정날씨일기_${name}_${dateFormatted}.png`;
+                const selectedDate = document.getElementById('dateInput').value;
+                const dateFormatted = formatDate(selectedDate);
+                const name = document.getElementById('studentName').value || '미입력';
+                const className = document.getElementById('className').value || '';
+                
+                // 파일명 형식: 감정날씨일기_날짜_학년반_이름.png
+                let fileName = `감정날씨일기_${dateFormatted}`;
+                if (className) fileName += `_${className}`;
+                fileName += `_${name}.png`;
+                
+                link.download = fileName;
                 link.href = canvas.toDataURL();
                 link.click();
                 
-                showToast('📸 이미지가 저장되었습니다!');
+                showToast(`📸 이미지가 저장되었습니다! (${fileName})`);
                 
                 // 저장 후 로컬 스토리지 기록도 저장
                 const formData = collectFormData();
