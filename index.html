@@ -292,10 +292,9 @@
 /* 위로 카드 생성 버튼 */
 #createCardButton {
   display: none;
-  margin-top: 12px;
 }
 #createCardButton.active {
-  display: inline-flex;
+  display: inline-block;
   animation: fadeInUp 0.4s ease;
 }
 
@@ -321,33 +320,70 @@
 
 /* 인쇄 */
 @media print {
-  @page { size: A4; margin: 15mm; }
+  @page { size: A4; margin: 10mm; }
   body { margin: 0; padding: 0; }
   .no-print { display: none !important; }
+
   #captureArea {
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 20px !important;
+    padding: 10px !important;
     box-shadow: none !important;
+    background: white !important;
   }
-  .page-break-after-weather { page-break-after: always; break-after: page; }
+  .emotion-gradient { display: none !important; }
+
+  /* 페이지 나눔: 각 섹션이 잘리지 않도록 */
+  .page-break-after-weather { page-break-after: auto; break-after: auto; }
+  .bg-white, .comfort-section { page-break-inside: avoid; }
   .weather-card { page-break-inside: avoid; }
-  .bg-white { page-break-inside: avoid; }
-  .mb-6 { margin-bottom: 15px !important; }
-  .mb-8 { margin-bottom: 20px !important; }
-  .p-6 { padding: 15px !important; }
-  .p-8 { padding: 20px !important; }
-  h1 { font-size: 28px !important; }
-  h2 { font-size: 20px !important; }
-  .text-5xl { font-size: 2.5rem !important; }
-  #captureArea .weather-grid { grid-template-columns: repeat(4, 1fr) !important; }
-  svg { width: 150px !important; height: 225px !important; }
-  textarea { min-height: 40px !important; }
-  input[type="date"], input[type="text"] {
+
+  /* 간격 축소 */
+  .mb-6 { margin-bottom: 8px !important; }
+  .mb-8 { margin-bottom: 10px !important; }
+  .p-6 { padding: 8px !important; }
+  .p-8 { padding: 10px !important; }
+  .gap-4 { gap: 6px !important; }
+  .gap-6 { gap: 8px !important; }
+  .space-y-3 > * + * { margin-top: 4px !important; }
+  .mt-4 { margin-top: 6px !important; }
+  .p-4 { padding: 6px !important; }
+  .p-3 { padding: 4px !important; }
+
+  /* 폰트 축소 */
+  h1 { font-size: 22px !important; margin-bottom: 4px !important; }
+  h2 { font-size: 16px !important; margin-bottom: 6px !important; }
+  .text-5xl { font-size: 2rem !important; }
+  .text-6xl { font-size: 2rem !important; }
+  .text-2xl { font-size: 16px !important; }
+  label, .text-sm { font-size: 11px !important; }
+
+  /* 날씨 카드 그리드: 4열 콤팩트 */
+  #captureArea .weather-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 4px !important; }
+  .weather-card { padding: 6px !important; }
+  .weather-card .text-6xl, .weather-card .md\\:text-5xl { font-size: 1.5rem !important; margin-bottom: 2px !important; }
+  .weather-card .font-medium { font-size: 11px !important; }
+  .weather-card .text-sm { font-size: 9px !important; }
+
+  /* 신체 SVG 축소 */
+  svg { width: 100px !important; height: 150px !important; }
+
+  /* 입력 필드 */
+  textarea { min-height: 28px !important; font-size: 11px !important; padding: 4px !important; }
+  input[type="text"], input[type="date"] {
     border-bottom: 1px solid #333 !important;
     background: transparent !important;
+    font-size: 11px !important;
+    padding: 2px 4px !important;
   }
   input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+
+  /* 신체 변화 입력 박스 축소 */
+  .body-desc-box { padding: 3px !important; margin-top: 3px !important; }
+  .body-input { font-size: 10px !important; padding: 2px 4px !important; margin-top: 2px !important; }
+
+  /* 복합 감정 / 감정 강도 */
+  details { display: none !important; }
 
   /* 위로 메시지 인쇄 스타일 */
   .comfort-section {
@@ -362,6 +398,9 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /* 선택되지 않은 위로 문장 숨기기 */
+  .comfort-suggestion:not(.selected) { display: none !important; }
+  .comfort-placeholder { display: none !important; }
 }
 </style>
 </head>
