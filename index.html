@@ -1528,34 +1528,55 @@ function closePreviewModal() {
   document.getElementById('previewModal').classList.remove('active');
 }
 
+// 캡처용 임시 요소 생성 (화면 밖에 원본 크기로 렌더링)
+async function createCaptureElement() {
+  const cardHTML = generateCardHTML();
+
+  // 화면 밖에 독립적인 캡처 컨테이너 생성
+  const wrapper = document.createElement('div');
+  wrapper.id = 'captureWrapper';
+  wrapper.style.cssText = `
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 800px;
+    height: 1200px;
+    z-index: -1;
+    overflow: visible;
+  `;
+  wrapper.innerHTML = cardHTML;
+  document.body.appendChild(wrapper);
+
+  // 렌더링 완료 대기
+  await new Promise(resolve => setTimeout(resolve, 200));
+
+  const cardEl = wrapper.querySelector('#comfortCardPreview');
+  // ID 충돌 방지
+  cardEl.id = 'comfortCardCapture';
+
+  return { wrapper, cardEl };
+}
+
 // PNG 다운로드
 async function downloadCardAsPNG() {
   try {
     showToast('PNG 파일을 생성하고 있습니다...');
 
-    const cardElement = document.getElementById('comfortCardPreview');
-    const container = document.getElementById('cardPreviewContainer');
+    // 화면 밖에 캡처용 카드 생성
+    const { wrapper, cardEl } = await createCaptureElement();
 
-    // 캡처 전: transform 제거하여 원본 크기로 렌더링
-    const originalTransform = container.style.transform;
-    const originalTransformOrigin = container.style.transformOrigin;
-    container.style.transform = 'none';
-    container.style.transformOrigin = 'top left';
-
-    // 레이아웃 재계산 대기
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const canvas = await html2canvas(cardElement, {
-      scale: 3,  // 고해상도 (2400px × 3600px)
+    const canvas = await html2canvas(cardEl, {
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: null,
-      logging: false
+      logging: false,
+      width: 800,
+      height: 1200
     });
 
-    // 캡처 후: transform 복원
-    container.style.transform = originalTransform;
-    container.style.transformOrigin = originalTransformOrigin;
+    // 임시 요소 제거
+    document.body.removeChild(wrapper);
 
     // 파일명 생성
     const date = document.getElementById('dateInput').value.replace(/-/g, '') || 'nodate';
@@ -1572,6 +1593,9 @@ async function downloadCardAsPNG() {
   } catch (error) {
     console.error('PNG 다운로드 오류:', error);
     showToast('❌ PNG 다운로드 중 오류가 발생했습니다');
+    // 임시 요소 정리
+    const w = document.getElementById('captureWrapper');
+    if (w) document.body.removeChild(w);
   }
 }
 
@@ -1580,30 +1604,21 @@ async function downloadCardAsPDF() {
   try {
     showToast('PDF 파일을 생성하고 있습니다...');
 
-    const cardElement = document.getElementById('comfortCardPreview');
-    const container = document.getElementById('cardPreviewContainer');
+    // 화면 밖에 캡처용 카드 생성
+    const { wrapper, cardEl } = await createCaptureElement();
 
-    // 캡처 전: transform 제거하여 원본 크기로 렌더링
-    const originalTransform = container.style.transform;
-    const originalTransformOrigin = container.style.transformOrigin;
-    container.style.transform = 'none';
-    container.style.transformOrigin = 'top left';
-
-    // 레이아웃 재계산 대기
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // html2canvas로 이미지 생성
-    const canvas = await html2canvas(cardElement, {
+    const canvas = await html2canvas(cardEl, {
       scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: null,
-      logging: false
+      logging: false,
+      width: 800,
+      height: 1200
     });
 
-    // 캡처 후: transform 복원
-    container.style.transform = originalTransform;
-    container.style.transformOrigin = originalTransformOrigin;
+    // 임시 요소 제거
+    document.body.removeChild(wrapper);
 
     const imgData = canvas.toDataURL('image/png');
 
@@ -1646,6 +1661,9 @@ async function downloadCardAsPDF() {
   } catch (error) {
     console.error('PDF 다운로드 오류:', error);
     showToast('❌ PDF 다운로드 중 오류가 발생했습니다');
+    // 임시 요소 정리
+    const w = document.getElementById('captureWrapper');
+    if (w) document.body.removeChild(w);
   }
 }
 
