@@ -1534,14 +1534,28 @@ async function downloadCardAsPNG() {
     showToast('PNG 파일을 생성하고 있습니다...');
 
     const cardElement = document.getElementById('comfortCardPreview');
+    const container = document.getElementById('cardPreviewContainer');
+
+    // 캡처 전: transform 제거하여 원본 크기로 렌더링
+    const originalTransform = container.style.transform;
+    const originalTransformOrigin = container.style.transformOrigin;
+    container.style.transform = 'none';
+    container.style.transformOrigin = 'top left';
+
+    // 레이아웃 재계산 대기
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     const canvas = await html2canvas(cardElement, {
       scale: 3,  // 고해상도 (2400px × 3600px)
       useCORS: true,
       allowTaint: true,
-      backgroundColor: '#ffffff',
+      backgroundColor: null,
       logging: false
     });
+
+    // 캡처 후: transform 복원
+    container.style.transform = originalTransform;
+    container.style.transformOrigin = originalTransformOrigin;
 
     // 파일명 생성
     const date = document.getElementById('dateInput').value.replace(/-/g, '') || 'nodate';
@@ -1567,15 +1581,29 @@ async function downloadCardAsPDF() {
     showToast('PDF 파일을 생성하고 있습니다...');
 
     const cardElement = document.getElementById('comfortCardPreview');
+    const container = document.getElementById('cardPreviewContainer');
+
+    // 캡처 전: transform 제거하여 원본 크기로 렌더링
+    const originalTransform = container.style.transform;
+    const originalTransformOrigin = container.style.transformOrigin;
+    container.style.transform = 'none';
+    container.style.transformOrigin = 'top left';
+
+    // 레이아웃 재계산 대기
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // html2canvas로 이미지 생성
     const canvas = await html2canvas(cardElement, {
       scale: 3,
       useCORS: true,
       allowTaint: true,
-      backgroundColor: '#ffffff',
+      backgroundColor: null,
       logging: false
     });
+
+    // 캡처 후: transform 복원
+    container.style.transform = originalTransform;
+    container.style.transformOrigin = originalTransformOrigin;
 
     const imgData = canvas.toDataURL('image/png');
 
