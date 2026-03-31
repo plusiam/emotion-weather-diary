@@ -290,12 +290,10 @@
 }
 
 /* 위로 카드 생성 버튼 */
-#createCardButton {
-  display: none;
-}
-#createCardButton.active {
-  display: inline-block;
-  animation: fadeInUp 0.4s ease;
+#createCardButton.disabled-card {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 @keyframes fadeInUp {
@@ -682,7 +680,7 @@
       🖨️ 인쇄하기
     </button>
     <button id="createCardButton" onclick="openCreateCardModal()"
-      class="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-bold hover:shadow-lg transform hover:scale-105 transition">
+      class="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-bold hover:shadow-lg transform hover:scale-105 transition disabled-card">
       💌 위로 카드 만들기
     </button>
     <button onclick="resetForm()"
@@ -1025,8 +1023,8 @@ function selectComfortSuggestion(idx, weather) {
   const comfortMessageInput = document.getElementById('comfortMessage');
   comfortMessageInput.value = msg;
 
-  // input 이벤트 수동 발생 (위로 카드 버튼 활성화 트리거)
-  comfortMessageInput.dispatchEvent(new Event('input'));
+  // 위로 카드 버튼 활성화
+  updateCreateCardButton();
 
   // 인쇄용 표시 업데이트
   updateSelectedComfortDisplay(msg);
@@ -1172,6 +1170,7 @@ function loadAutoSavedData() {
     if (data.comfortMessage) {
       document.getElementById('comfortMessage').value = data.comfortMessage;
       updateSelectedComfortDisplay(data.comfortMessage);
+      updateCreateCardButton();
     }
     if (data.selectedComfortIdx !== undefined && data.selectedComfortIdx >= 0 && data.weather) {
       setTimeout(() => {
@@ -1336,17 +1335,18 @@ const cardTemplates = {
 };
 
 // 4단계 완료 감지 (위로 메시지 입력 시 버튼 활성화)
-document.getElementById('comfortMessage').addEventListener('input', function() {
-  const message = this.value.trim();
+function updateCreateCardButton() {
+  const message = document.getElementById('comfortMessage').value.trim();
   const button = document.getElementById('createCardButton');
 
   if (message.length > 0) {
-    button.classList.add('active');
+    button.classList.remove('disabled-card');
     announceToScreenReader('위로 카드 만들기 버튼이 활성화되었습니다');
   } else {
-    button.classList.remove('active');
+    button.classList.add('disabled-card');
   }
-});
+}
+document.getElementById('comfortMessage').addEventListener('input', updateCreateCardButton);
 
 // 모달 열기 - 이름 입력
 function openCreateCardModal() {
