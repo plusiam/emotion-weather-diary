@@ -407,6 +407,12 @@
   }
 }
 </style>
+<style id="mobile-fix-20261110">
+/* 폰 화면 보정(2026-11-10): 좁은 화면(360px 안팎)에서 옆으로 넘치거나 글이 좁게 끊기지 않게 */
+@media screen and (max-width: 420px) {
+  .flex.justify-center.items-center.gap-4.text-gray-600 { flex-wrap: wrap !important; row-gap: 8px !important; }
+}
+</style>
 </head>
 <body class="bg-gray-50">
 
